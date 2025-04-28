@@ -37,12 +37,9 @@ impl Engine {
         }
     }
 
-    pub fn run(self) -> Result<(), Box<dyn Error>> {
+    pub fn run(mut self) -> Result<(), Box<dyn Error>> {
         for _time in 0..self.time_horizon {
-            for actor in self.actors.values().into_iter() {
-                // Might have to redo the engine struct so that
-                // `Actors` is a `Vec<Box<dyn Actor>>` instead of a HashMap
-                // so that I can
+            for actor in self.actors.values_mut().into_iter() {
                 let action_response = match actor.act() {
                     Action::Noop => ActionResponse::Noop,
                     Action::SubmitOrder(exchange_code, order) => {
@@ -53,7 +50,7 @@ impl Engine {
                     }
                 };
 
-                *actor.register_action_response(action_response);
+                actor.register_action_response(action_response);
             }
         }
         Ok(())

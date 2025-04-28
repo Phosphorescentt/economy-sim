@@ -1,49 +1,9 @@
 use crate::{
+    actors::{Action, Actor},
     engine::ActionResponse,
     exchanges::ExchangeCode,
     orders::{CounterpartyCode, Order, OrderDirection, Price, Ticker},
-    Engine,
 };
-
-pub enum Action {
-    Noop,
-    SubmitOrder(ExchangeCode, Order),
-}
-
-pub trait Actor {
-    fn counterparty_code(self) -> CounterpartyCode;
-    fn counterparty_code_as_ref(&self) -> &CounterpartyCode;
-    fn act(&self) -> Action;
-    fn register_action_response(&mut self, action_response: ActionResponse) -> ();
-}
-
-pub struct NoopActor {
-    counterparty_code: CounterpartyCode,
-}
-
-impl From<CounterpartyCode> for NoopActor {
-    fn from(counterparty_code: CounterpartyCode) -> Self {
-        Self { counterparty_code }
-    }
-}
-
-impl Actor for NoopActor {
-    fn counterparty_code(self) -> CounterpartyCode {
-        self.counterparty_code
-    }
-
-    fn counterparty_code_as_ref(&self) -> &CounterpartyCode {
-        &self.counterparty_code
-    }
-
-    fn act(&self) -> Action {
-        Action::Noop
-    }
-
-    fn register_action_response(&mut self, _action_response: ActionResponse) -> () {
-        ()
-    }
-}
 
 pub struct SimpleActor {
     pub exchange_code: ExchangeCode,
