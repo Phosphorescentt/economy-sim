@@ -1,9 +1,20 @@
 #[derive(Clone)]
+pub struct OrderId(pub u32);
+
+impl OrderId {
+    pub fn next(self) -> OrderId {
+        OrderId(self.0 + 1)
+    }
+}
+
+#[derive(Clone)]
 pub enum OrderDirection {
     Bid,
     Ask,
 }
 
+// This annoying hack exists so that I can use f64s as a key in the orders hash
+// map on the exchanges struct.
 fn integer_decode(val: f64) -> (u64, i16, i8) {
     // yikes.
     let bits: u64 = unsafe { std::mem::transmute(val) };
@@ -44,4 +55,9 @@ pub struct Order {
     pub direction: OrderDirection,
     pub price: Price,
     pub size: i32,
+}
+
+pub struct SubmittedOrder {
+    pub id: OrderId,
+    pub order: Order,
 }

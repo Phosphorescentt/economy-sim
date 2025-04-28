@@ -52,5 +52,6 @@ impl Actor for SimpleActor {
 
     fn register_action_response(&mut self, action_response: ActionResponse) -> () {
         // dump data into the VOID.
+        ()
     }
 }

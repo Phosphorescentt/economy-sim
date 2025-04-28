@@ -1,12 +1,13 @@
 use crate::actors::{Action, Actor};
 use crate::exchanges::{Exchange, ExchangeCode};
-use crate::orders::CounterpartyCode;
+use crate::orders::{CounterpartyCode, OrderId};
 use std::collections::HashMap;
 use std::error::Error;
 
 pub enum ActionResponse {
     Noop,
-    SubmitOrder(Option<(ExchangeCode, u32)>),
+    OrderSubmitted((ExchangeCode, OrderId)),
+    ExchangeCodeNotFound,
 }
 
 pub struct Engine {
@@ -43,10 +44,11 @@ impl Engine {
                 let action_response = match actor.act() {
                     Action::Noop => ActionResponse::Noop,
                     Action::SubmitOrder(exchange_code, order) => {
-                        // TODO: implement this:
-                        // 1. find correct exchange
-                        // 2. submit order on that exchange
-                        ActionResponse::Noop
+                        if let Some(exchange) = self.exchanges.get_mut(&exchange_code) {
+                            exchange.submit_order(order)
+                        } else {
+                            ActionResponse::ExchangeCodeNotFound
+                        }
                     }
                 };
 
