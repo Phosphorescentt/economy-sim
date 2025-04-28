@@ -1,12 +1,13 @@
 use crate::actors::{Action, Actor};
 use crate::exchanges::{Exchange, ExchangeCode};
 use crate::orders::{CounterpartyCode, OrderId};
+use log::info;
 use std::collections::HashMap;
 use std::error::Error;
 
 pub enum ActionResponse {
     Noop,
-    OrderSubmitted((ExchangeCode, OrderId)),
+    OrderSubmitted(ExchangeCode, OrderId),
     ExchangeCodeNotFound,
 }
 
@@ -39,9 +40,26 @@ impl Engine {
     }
 
     pub fn run(mut self) -> Result<(), Box<dyn Error>> {
-        for _time in 0..self.time_horizon {
+        // Actor Update Step
+        // This is when the engine updates the actors with events from the Exchanges.
+
+        // Actor Pre-Action Step
+        // This is when the actors can request information from the exchanges.
+        // I.e. Historical market data
+
+        // Actor Action Step
+        // This is when the actors decide to submit/retract orders.
+        for time in 0..self.time_horizon {
+            info!("Step {}", time.to_string());
             for actor in self.actors.values_mut().into_iter() {
-                let action_response = match actor.act() {
+                let action = actor.act();
+                info!(
+                    "Actor '{:?}' is performing action '{:?}'",
+                    actor.counterparty_code_as_ref(),
+                    action
+                );
+
+                let action_response = match action {
                     Action::Noop => ActionResponse::Noop,
                     Action::SubmitOrder(exchange_code, order) => {
                         if let Some(exchange) = self.exchanges.get_mut(&exchange_code) {
@@ -50,11 +68,21 @@ impl Engine {
                             ActionResponse::ExchangeCodeNotFound
                         }
                     }
+                    Action::RetractOrder(exchange_code, order_id) => {
+                        // This one is going to be a PITA because the way the data
+                        // is stored makes it annoying to find an Order by ID.
+                        todo!()
+                    }
                 };
 
                 actor.register_action_response(action_response);
             }
         }
+
+        // Exchange Matching Step
+        // At this step we ask each of the exchanges to match orders.
+        // Matched orders get added to the history and relevant counterparties
+        // get notified that an order has been matched.
         Ok(())
     }
 

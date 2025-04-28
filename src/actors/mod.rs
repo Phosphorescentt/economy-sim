@@ -4,14 +4,16 @@ mod simple_actor;
 use crate::{
     engine::ActionResponse,
     exchanges::ExchangeCode,
-    orders::{CounterpartyCode, Order},
+    orders::{CounterpartyCode, Order, OrderId},
 };
 pub use noop_actor::NoopActor;
 pub use simple_actor::SimpleActor;
 
+#[derive(Debug)]
 pub enum Action {
     Noop,
     SubmitOrder(ExchangeCode, Order),
+    RetractOrder(ExchangeCode, OrderId),
 }
 
 pub trait Actor {

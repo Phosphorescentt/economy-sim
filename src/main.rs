@@ -6,9 +6,13 @@ mod orders;
 use actors::{NoopActor, SimpleActor};
 use engine::Engine;
 use exchanges::{Exchange, ExchangeCode};
+use log::info;
 use orders::{CounterpartyCode, Order, OrderDirection, Price, Ticker};
 
 fn main() {
+    env_logger::init();
+    info!("Logging initialised.");
+
     let engine = Engine::from(10)
         .add_exchange(Exchange::from_exchange_code(ExchangeCode(String::from(
             "ABCD",
@@ -27,5 +31,5 @@ fn main() {
             },
         ))));
 
-    engine.run();
+    let _ = engine.run();
 }

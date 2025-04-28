@@ -1,4 +1,4 @@
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct OrderId(pub u32);
 
 impl OrderId {
@@ -7,7 +7,7 @@ impl OrderId {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum OrderDirection {
     Bid,
     Ask,
@@ -30,11 +30,11 @@ fn integer_decode(val: f64) -> (u64, i16, i8) {
     (mantissa, exponent, sign)
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct CounterpartyCode(pub String);
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Ticker(pub String);
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Price((u64, i16, i8));
 
 impl From<f32> for Price {
@@ -49,6 +49,7 @@ impl From<f64> for Price {
     }
 }
 
+#[derive(Debug)]
 pub struct Order {
     pub counterparty_code: CounterpartyCode,
     pub ticker: Ticker,
