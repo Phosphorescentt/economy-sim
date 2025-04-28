@@ -1,4 +1,5 @@
 use crate::{
+    engine::ActionResponse,
     exchanges::ExchangeCode,
     orders::{CounterpartyCode, Order, OrderDirection, Price, Ticker},
     Engine,
@@ -13,6 +14,7 @@ pub trait Actor {
     fn counterparty_code(self) -> CounterpartyCode;
     fn counterparty_code_as_ref(&self) -> &CounterpartyCode;
     fn act(&self) -> Action;
+    fn register_action_response(&mut self, action_response: ActionResponse) -> ();
 }
 
 pub struct NoopActor {
@@ -36,6 +38,10 @@ impl Actor for NoopActor {
 
     fn act(&self) -> Action {
         Action::Noop
+    }
+
+    fn register_action_response(&mut self, _action_response: ActionResponse) -> () {
+        ()
     }
 }
 
@@ -82,5 +88,9 @@ impl Actor for SimpleActor {
                 size: self.size,
             },
         )
+    }
+
+    fn register_action_response(&mut self, action_response: ActionResponse) -> () {
+        // dump data into the VOID.
     }
 }

@@ -4,17 +4,24 @@ use crate::orders::CounterpartyCode;
 use std::collections::HashMap;
 use std::error::Error;
 
+pub enum ActionResponse {
+    Noop,
+    SubmitOrder(Option<(ExchangeCode, u32)>),
+}
+
 pub struct Engine {
     exchanges: HashMap<ExchangeCode, Exchange>,
     actors: HashMap<CounterpartyCode, Box<dyn Actor>>,
-    time_horizon: i32,
+    actors_funds: HashMap<CounterpartyCode, i32>,
+    time_horizon: u32,
 }
 
-impl From<i32> for Engine {
-    fn from(value: i32) -> Self {
+impl From<u32> for Engine {
+    fn from(value: u32) -> Self {
         Self {
             exchanges: HashMap::new(),
             actors: HashMap::new(),
+            actors_funds: HashMap::new(),
             time_horizon: value,
         }
     }
@@ -25,26 +32,28 @@ impl Engine {
         Self {
             exchanges: HashMap::new(),
             actors: HashMap::new(),
+            actors_funds: HashMap::new(),
             time_horizon: 1000,
         }
     }
 
     pub fn run(self) -> Result<(), Box<dyn Error>> {
-        for time in 0..self.time_horizon {
+        for _time in 0..self.time_horizon {
             for actor in self.actors.values().into_iter() {
-                let action = actor.act();
-                // NOTE: Create some notion of an `ActionResponse` that the engine
-                // passes back to the actor. I.e. when an order is submitted to an
-                // exchange, pass back a trade ID to the actor so it can keep track
-                // of open trades or submit actions to close trades.
-                let action_response = match action {
-                    Action::Noop => { /* do nothing */ }
+                // Might have to redo the engine struct so that
+                // `Actors` is a `Vec<Box<dyn Actor>>` instead of a HashMap
+                // so that I can
+                let action_response = match actor.act() {
+                    Action::Noop => ActionResponse::Noop,
                     Action::SubmitOrder(exchange_code, order) => {
                         // TODO: implement this:
                         // 1. find correct exchange
                         // 2. submit order on that exchange
+                        ActionResponse::Noop
                     }
                 };
+
+                *actor.register_action_response(action_response);
             }
         }
         Ok(())
