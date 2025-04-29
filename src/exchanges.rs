@@ -55,7 +55,16 @@ impl Exchange {
     fn add_bid_order(&mut self, bid_order: Order) -> ActionResponse {
         // This is probably extremely slow but I cba to write it properly right now :)
         // Although this might actually be quicker in reality because you'd expect the
-        // distribution of prices to be top heavy.
+        // distribution of prices to be top heavy. I.e. you might expect a distribution
+        // like the following:
+        // 3.0 | ############
+        // 2.5 | #####
+        // 2.0 | ##
+        // 1.0 | #
+        // 0.5 | _
+        // Once this distribution starts overlapping with the ask prices, the exchange
+        // should start matching things and then we will no longer have to consider
+        // those orders.
         let i = self
             .bid_orders
             .iter()
@@ -75,11 +84,10 @@ impl Exchange {
     }
 
     fn add_ask_order(&mut self, ask_order: Order) -> ActionResponse {
-        // This is probably extremely slow but I cba to write it properly right now :)
         let i = self
             .ask_orders
             .iter()
-            .take_while(|existing_order| existing_order.order.price.0 > ask_order.price.0)
+            .take_while(|existing_order| existing_order.order.price.0 < ask_order.price.0)
             .count();
 
         let order_id = self.new_order_id();
@@ -115,25 +123,25 @@ mod test {
             counterparty_code: CounterpartyCode::from("ABCD"),
             ticker: Ticker::from("AAPL"),
             price: Price(1.0),
-            direction: OrderDirection::Ask,
+            direction: OrderDirection::Bid,
         });
         exchange.add_bid_order(Order {
             counterparty_code: CounterpartyCode::from("ABCD"),
             ticker: Ticker::from("AAPL"),
             price: Price(3.5),
-            direction: OrderDirection::Ask,
+            direction: OrderDirection::Bid,
         });
         exchange.add_bid_order(Order {
             counterparty_code: CounterpartyCode::from("ABCD"),
             ticker: Ticker::from("AAPL"),
             price: Price(2.0),
-            direction: OrderDirection::Ask,
+            direction: OrderDirection::Bid,
         });
         exchange.add_bid_order(Order {
             counterparty_code: CounterpartyCode::from("ABCD"),
             ticker: Ticker::from("AAPL"),
             price: Price(3.0),
-            direction: OrderDirection::Ask,
+            direction: OrderDirection::Bid,
         });
 
         let prices = exchange
@@ -143,5 +151,43 @@ mod test {
             .collect::<Vec<f32>>();
 
         assert_eq!(prices, vec![3.5, 3.0, 2.0, 1.0])
+    }
+
+    #[test]
+    fn test_add_ask_order() {
+        let mut exchange = Exchange::from_exchange_code(ExchangeCode::from("ABCD"));
+
+        exchange.add_ask_order(Order {
+            counterparty_code: CounterpartyCode::from("ABCD"),
+            ticker: Ticker::from("AAPL"),
+            price: Price(1.0),
+            direction: OrderDirection::Ask,
+        });
+        exchange.add_ask_order(Order {
+            counterparty_code: CounterpartyCode::from("ABCD"),
+            ticker: Ticker::from("AAPL"),
+            price: Price(3.5),
+            direction: OrderDirection::Ask,
+        });
+        exchange.add_ask_order(Order {
+            counterparty_code: CounterpartyCode::from("ABCD"),
+            ticker: Ticker::from("AAPL"),
+            price: Price(2.0),
+            direction: OrderDirection::Ask,
+        });
+        exchange.add_ask_order(Order {
+            counterparty_code: CounterpartyCode::from("ABCD"),
+            ticker: Ticker::from("AAPL"),
+            price: Price(3.0),
+            direction: OrderDirection::Ask,
+        });
+
+        let prices = exchange
+            .ask_orders
+            .iter()
+            .map(|order| order.order.price.0)
+            .collect::<Vec<f32>>();
+
+        assert_eq!(prices, vec![1.0, 2.0, 3.0, 3.5])
     }
 }
