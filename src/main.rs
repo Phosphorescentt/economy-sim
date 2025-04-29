@@ -21,13 +21,12 @@ fn main() {
             "PQRS",
         )))))
         .add_actor(Box::new(SimpleActor::from((
-            ExchangeCode(String::from("ABCD")),
+            ExchangeCode::from("ABCD"),
             Order {
-                counterparty_code: CounterpartyCode(String::from("WXYZ")),
-                ticker: Ticker(String::from("AAPL")),
+                counterparty_code: CounterpartyCode::from("ABCD"),
+                ticker: Ticker::from("AAPL"),
+                price: Price(1.0),
                 direction: OrderDirection::Bid,
-                price: Price::from(1.0),
-                size: 1,
             },
         ))));
 

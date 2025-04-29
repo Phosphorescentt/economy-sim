@@ -1,17 +1,31 @@
 use crate::{
     engine::ActionResponse,
-    orders::{Order, OrderId, Price, SubmittedOrder},
+    orders::{Order, OrderDirection, OrderId, TradeId},
 };
-use std::collections::HashMap;
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ExchangeCode(pub String);
+
+impl From<&str> for ExchangeCode {
+    fn from(value: &str) -> Self {
+        ExchangeCode(String::from(value))
+    }
+}
 
 pub struct Exchange {
     name: String,
     pub code: ExchangeCode,
-    // NOTE: Maybe we split this out into Bid orders and Ask orders?
-    orders: HashMap<Price, Vec<SubmittedOrder>>,
+    /// A list of bid orders, sorted with descending price.
+    bid_orders: Vec<ExchangeOrder>,
+    /// A list of ask orders, sorted with ascending price.
+    ask_orders: Vec<ExchangeOrder>,
     latest_order_id: OrderId,
+    latest_trade_id: TradeId,
+}
+
+pub struct ExchangeOrder {
+    order_id: OrderId,
+    order: Order,
 }
 
 impl Exchange {
@@ -19,36 +33,69 @@ impl Exchange {
         Self {
             name: code.0.clone(),
             code,
-            orders: HashMap::new(),
-            latest_order_id: OrderId(0),
+            bid_orders: Vec::new(),
+            ask_orders: Vec::new(),
+            latest_order_id: OrderId::new(),
+            latest_trade_id: TradeId::new(),
         }
     }
 
-    pub fn submitted_order_from_order(&mut self, order: Order) -> SubmittedOrder {
-        self.latest_order_id = self.latest_order_id.clone().next();
-        SubmittedOrder {
-            id: self.latest_order_id.clone(),
-            order: order,
-        }
+    fn new_order_id(&mut self) -> OrderId {
+        let new_order_id = self.latest_order_id.clone().next();
+        self.latest_order_id = new_order_id.clone();
+        new_order_id
+    }
+
+    fn new_trade_id(&mut self) -> TradeId {
+        let new_trade_id = self.latest_trade_id.clone().next();
+        self.latest_trade_id = new_trade_id.clone();
+        new_trade_id
+    }
+
+    fn add_bid_order(&mut self, bid_order: Order) -> ActionResponse {
+        // This is probably extremely slow but I cba to write it properly right now :)
+        let i = self
+            .bid_orders
+            .iter()
+            .take_while(|existing_order| existing_order.order.price.0 > bid_order.price.0)
+            .count();
+
+        let order_id = self.new_order_id();
+        self.bid_orders.insert(
+            i,
+            ExchangeOrder {
+                order_id: order_id.clone(),
+                order: bid_order,
+            },
+        );
+
+        ActionResponse::OrderSubmitted(self.code.clone(), order_id)
+    }
+
+    fn add_ask_order(&mut self, ask_order: Order) -> ActionResponse {
+        // This is probably extremely slow but I cba to write it properly right now :)
+        let i = self
+            .ask_orders
+            .iter()
+            .take_while(|existing_order| existing_order.order.price.0 > ask_order.price.0)
+            .count();
+
+        let order_id = self.new_order_id();
+        self.ask_orders.insert(
+            i,
+            ExchangeOrder {
+                order_id: order_id.clone(),
+                order: ask_order,
+            },
+        );
+
+        ActionResponse::OrderSubmitted(self.code.clone(), order_id)
     }
 
     pub fn submit_order(&mut self, order: Order) -> ActionResponse {
-        let order_price = order.price.clone();
-        let submitted_order = self.submitted_order_from_order(order);
-        let new_order_id = submitted_order.id.clone();
-
-        if let Some(mut existing_orders) = self.orders.get_mut(&order_price) {
-            existing_orders.push(submitted_order);
-        } else {
-            self.orders.insert(order_price, vec![submitted_order]);
+        match order.direction {
+            OrderDirection::Bid => self.add_bid_order(order),
+            OrderDirection::Ask => self.add_ask_order(order),
         }
-        ActionResponse::OrderSubmitted(self.code.clone(), new_order_id)
-    }
-
-    pub fn match_orders(&mut self) -> () {
-        // iterate through all orders and attempt to match
-        // any that do match, oragnise to send a message out to the actors that
-        // their order has been matched
-        // Keep a log of all the matches that occur so they can be replayed later.
     }
 }

@@ -1,5 +1,5 @@
 use crate::actors::{Action, Actor};
-use crate::exchanges::{Exchange, ExchangeCode};
+use crate::exchanges::{Exchange, ExchangeCode, ExchangeOrder};
 use crate::orders::{CounterpartyCode, OrderId};
 use log::info;
 use std::collections::HashMap;

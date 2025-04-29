@@ -11,7 +11,6 @@ pub struct SimpleActor {
     pub ticker: Ticker,
     pub direction: OrderDirection,
     pub price: Price,
-    pub size: i32,
 }
 
 impl From<(ExchangeCode, Order)> for SimpleActor {
@@ -22,7 +21,6 @@ impl From<(ExchangeCode, Order)> for SimpleActor {
             ticker: exchange_code_order.1.ticker,
             direction: exchange_code_order.1.direction,
             price: exchange_code_order.1.price,
-            size: exchange_code_order.1.size,
         }
     }
 }
@@ -45,7 +43,6 @@ impl Actor for SimpleActor {
                 ticker: self.ticker.clone(),
                 direction: self.direction.clone(),
                 price: self.price.clone(),
-                size: self.size,
             },
         )
     }
