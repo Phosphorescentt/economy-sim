@@ -54,6 +54,8 @@ impl Exchange {
 
     fn add_bid_order(&mut self, bid_order: Order) -> ActionResponse {
         // This is probably extremely slow but I cba to write it properly right now :)
+        // Although this might actually be quicker in reality because you'd expect the
+        // distribution of prices to be top heavy.
         let i = self
             .bid_orders
             .iter()
@@ -97,5 +99,49 @@ impl Exchange {
             OrderDirection::Bid => self.add_bid_order(order),
             OrderDirection::Ask => self.add_ask_order(order),
         }
+    }
+}
+
+mod test {
+    use crate::orders::{CounterpartyCode, Price, Ticker};
+
+    use super::*;
+
+    #[test]
+    fn test_add_bid_order() {
+        let mut exchange = Exchange::from_exchange_code(ExchangeCode::from("ABCD"));
+
+        exchange.add_bid_order(Order {
+            counterparty_code: CounterpartyCode::from("ABCD"),
+            ticker: Ticker::from("AAPL"),
+            price: Price(1.0),
+            direction: OrderDirection::Ask,
+        });
+        exchange.add_bid_order(Order {
+            counterparty_code: CounterpartyCode::from("ABCD"),
+            ticker: Ticker::from("AAPL"),
+            price: Price(3.5),
+            direction: OrderDirection::Ask,
+        });
+        exchange.add_bid_order(Order {
+            counterparty_code: CounterpartyCode::from("ABCD"),
+            ticker: Ticker::from("AAPL"),
+            price: Price(2.0),
+            direction: OrderDirection::Ask,
+        });
+        exchange.add_bid_order(Order {
+            counterparty_code: CounterpartyCode::from("ABCD"),
+            ticker: Ticker::from("AAPL"),
+            price: Price(3.0),
+            direction: OrderDirection::Ask,
+        });
+
+        let prices = exchange
+            .bid_orders
+            .iter()
+            .map(|order| order.order.price.0)
+            .collect::<Vec<f32>>();
+
+        assert_eq!(prices, vec![3.5, 3.0, 2.0, 1.0])
     }
 }
