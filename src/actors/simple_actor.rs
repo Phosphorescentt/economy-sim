@@ -40,8 +40,8 @@ impl Actor for SimpleActor {
             self.exchange_code.clone(),
             Order {
                 counterparty_code: self.counterparty_code.clone(),
-                ticker: self.ticker.clone(),
                 direction: self.direction.clone(),
+                ticker: self.ticker.clone(),
                 price: self.price.clone(),
             },
         )

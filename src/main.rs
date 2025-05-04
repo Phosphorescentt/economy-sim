@@ -1,7 +1,9 @@
 mod actors;
 mod engine;
 mod exchanges;
+mod order_collections;
 mod orders;
+mod trades;
 
 use actors::{NoopActor, SimpleActor};
 use engine::Engine;
@@ -24,9 +26,18 @@ fn main() {
             ExchangeCode::from("ABCD"),
             Order {
                 counterparty_code: CounterpartyCode::from("ABCD"),
+                direction: OrderDirection::Bid,
                 ticker: Ticker::from("AAPL"),
                 price: Price(1.0),
-                direction: OrderDirection::Bid,
+            },
+        ))))
+        .add_actor(Box::new(SimpleActor::from((
+            ExchangeCode::from("ABCD"),
+            Order {
+                counterparty_code: CounterpartyCode::from("EFGH"),
+                direction: OrderDirection::Ask,
+                ticker: Ticker::from("AAPL"),
+                price: Price(1.0),
             },
         ))));
 

@@ -1,9 +1,13 @@
+use log::info;
+use std::collections::HashMap;
+
 use crate::{
     engine::ActionResponse,
-    orders::{Order, OrderDirection, OrderId, TradeId},
+    orders::{Order, OrderBook, OrderId, Ticker},
+    trades::{Trade, TradeId},
 };
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExchangeCode(pub String);
 
 impl From<&str> for ExchangeCode {
@@ -12,20 +16,26 @@ impl From<&str> for ExchangeCode {
     }
 }
 
+// TODO: I think ideally bid_order and ask_order should be HashMap<OrderId, Order> with some special
+// implementation of .iter() that iterates over the values with sorted prices. This makes the
+// ergonomics much better as we can iterate in order and remove stuff in O(1) time.
 pub struct Exchange {
     name: String,
     pub code: ExchangeCode,
-    /// A list of bid orders, sorted with descending price.
-    bid_orders: Vec<ExchangeOrder>,
-    /// A list of ask orders, sorted with ascending price.
-    ask_orders: Vec<ExchangeOrder>,
-    latest_order_id: OrderId,
-    latest_trade_id: TradeId,
+    /// One order book per ticker.
+    order_books: HashMap<Ticker, OrderBook>,
 }
 
+#[derive(Clone)]
 pub struct ExchangeOrder {
+    pub order_id: OrderId,
+    pub order: Order,
+}
+
+pub struct ExchangeCompositeOrderId {
+    exchange_code: ExchangeCode,
+    ticker: Ticker,
     order_id: OrderId,
-    order: Order,
 }
 
 impl Exchange {
@@ -33,161 +43,44 @@ impl Exchange {
         Self {
             name: code.0.clone(),
             code,
-            bid_orders: Vec::new(),
-            ask_orders: Vec::new(),
-            latest_order_id: OrderId::new(),
-            latest_trade_id: TradeId::new(),
+            order_books: HashMap::new(),
         }
-    }
-
-    fn new_order_id(&mut self) -> OrderId {
-        let new_order_id = self.latest_order_id.clone().next();
-        self.latest_order_id = new_order_id.clone();
-        new_order_id
-    }
-
-    fn new_trade_id(&mut self) -> TradeId {
-        let new_trade_id = self.latest_trade_id.clone().next();
-        self.latest_trade_id = new_trade_id.clone();
-        new_trade_id
-    }
-
-    fn add_bid_order(&mut self, bid_order: Order) -> ActionResponse {
-        // This is probably extremely slow but I cba to write it properly right now :)
-        // Although this might actually be quicker in reality because you'd expect the
-        // distribution of prices to be top heavy. I.e. you might expect a distribution
-        // like the following:
-        // 3.0 | ############
-        // 2.5 | #####
-        // 2.0 | ##
-        // 1.0 | #
-        // 0.5 | _
-        // Once this distribution starts overlapping with the ask prices, the exchange
-        // should start matching things and then we will no longer have to consider
-        // those orders.
-        let i = self
-            .bid_orders
-            .iter()
-            .take_while(|existing_order| existing_order.order.price.0 > bid_order.price.0)
-            .count();
-
-        let order_id = self.new_order_id();
-        self.bid_orders.insert(
-            i,
-            ExchangeOrder {
-                order_id: order_id.clone(),
-                order: bid_order,
-            },
-        );
-
-        ActionResponse::OrderSubmitted(self.code.clone(), order_id)
-    }
-
-    fn add_ask_order(&mut self, ask_order: Order) -> ActionResponse {
-        let i = self
-            .ask_orders
-            .iter()
-            .take_while(|existing_order| existing_order.order.price.0 < ask_order.price.0)
-            .count();
-
-        let order_id = self.new_order_id();
-        self.ask_orders.insert(
-            i,
-            ExchangeOrder {
-                order_id: order_id.clone(),
-                order: ask_order,
-            },
-        );
-
-        ActionResponse::OrderSubmitted(self.code.clone(), order_id)
     }
 
     pub fn submit_order(&mut self, order: Order) -> ActionResponse {
-        match order.direction {
-            OrderDirection::Bid => self.add_bid_order(order),
-            OrderDirection::Ask => self.add_ask_order(order),
+        info!("Exchange {:?} has recieved an order {:?}", self.code, order);
+        // Find the book
+        let mut book = self.order_books.get_mut(&order.ticker.clone());
+        if book.is_none() {
+            self.order_books
+                .insert(order.ticker.clone(), OrderBook::from(order.ticker.clone()));
+            book = self.order_books.get_mut(&order.ticker.clone());
+        }
+
+        // If we found a book, add the order!
+        if let Some(book) = book {
+            let composite_id = book.add_order(order);
+            ActionResponse::OrderSubmitted(ExchangeCompositeOrderId {
+                exchange_code: self.code.clone(),
+                ticker: composite_id.ticker.clone(),
+                order_id: composite_id.order_id.clone(),
+            })
+        } else {
+            panic!("whoops!")
         }
     }
-}
 
-mod test {
-    use crate::orders::{CounterpartyCode, Price, Ticker};
-
-    use super::*;
-
-    #[test]
-    fn test_add_bid_order() {
-        let mut exchange = Exchange::from_exchange_code(ExchangeCode::from("ABCD"));
-
-        exchange.add_bid_order(Order {
-            counterparty_code: CounterpartyCode::from("ABCD"),
-            ticker: Ticker::from("AAPL"),
-            price: Price(1.0),
-            direction: OrderDirection::Bid,
-        });
-        exchange.add_bid_order(Order {
-            counterparty_code: CounterpartyCode::from("ABCD"),
-            ticker: Ticker::from("AAPL"),
-            price: Price(3.5),
-            direction: OrderDirection::Bid,
-        });
-        exchange.add_bid_order(Order {
-            counterparty_code: CounterpartyCode::from("ABCD"),
-            ticker: Ticker::from("AAPL"),
-            price: Price(2.0),
-            direction: OrderDirection::Bid,
-        });
-        exchange.add_bid_order(Order {
-            counterparty_code: CounterpartyCode::from("ABCD"),
-            ticker: Ticker::from("AAPL"),
-            price: Price(3.0),
-            direction: OrderDirection::Bid,
-        });
-
-        let prices = exchange
-            .bid_orders
-            .iter()
-            .map(|order| order.order.price.0)
-            .collect::<Vec<f32>>();
-
-        assert_eq!(prices, vec![3.5, 3.0, 2.0, 1.0])
-    }
-
-    #[test]
-    fn test_add_ask_order() {
-        let mut exchange = Exchange::from_exchange_code(ExchangeCode::from("ABCD"));
-
-        exchange.add_ask_order(Order {
-            counterparty_code: CounterpartyCode::from("ABCD"),
-            ticker: Ticker::from("AAPL"),
-            price: Price(1.0),
-            direction: OrderDirection::Ask,
-        });
-        exchange.add_ask_order(Order {
-            counterparty_code: CounterpartyCode::from("ABCD"),
-            ticker: Ticker::from("AAPL"),
-            price: Price(3.5),
-            direction: OrderDirection::Ask,
-        });
-        exchange.add_ask_order(Order {
-            counterparty_code: CounterpartyCode::from("ABCD"),
-            ticker: Ticker::from("AAPL"),
-            price: Price(2.0),
-            direction: OrderDirection::Ask,
-        });
-        exchange.add_ask_order(Order {
-            counterparty_code: CounterpartyCode::from("ABCD"),
-            ticker: Ticker::from("AAPL"),
-            price: Price(3.0),
-            direction: OrderDirection::Ask,
-        });
-
-        let prices = exchange
-            .ask_orders
-            .iter()
-            .map(|order| order.order.price.0)
-            .collect::<Vec<f32>>();
-
-        assert_eq!(prices, vec![1.0, 2.0, 3.0, 3.5])
+    pub fn match_orders(&mut self) -> Vec<(TradeId, Trade)> {
+        // Very simple matching algo
+        for (ticker, book) in self.order_books.iter_mut() {
+            let trades = book.match_orders();
+            info!(
+                "Exchange {:?} matched {:?} trades with ticker {:?}",
+                self.code,
+                trades.len(),
+                ticker
+            );
+        }
+        Vec::new()
     }
 }

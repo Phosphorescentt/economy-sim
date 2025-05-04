@@ -14,6 +14,7 @@ pub enum Action {
     Noop,
     SubmitOrder(ExchangeCode, Order),
     RetractOrder(ExchangeCode, OrderId),
+    QueryData,
 }
 
 pub trait Actor {

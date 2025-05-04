@@ -1,5 +1,5 @@
 [package]
-name = "economy-sim"
+name = "market-sim"
 version = "0.1.0"
 edition = "2021"
 

@@ -1,13 +1,13 @@
 use crate::actors::{Action, Actor};
-use crate::exchanges::{Exchange, ExchangeCode, ExchangeOrder};
-use crate::orders::{CounterpartyCode, OrderId};
+use crate::exchanges::{Exchange, ExchangeCode, ExchangeCompositeOrderId};
+use crate::orders::CounterpartyCode;
 use log::info;
 use std::collections::HashMap;
 use std::error::Error;
 
 pub enum ActionResponse {
     Noop,
-    OrderSubmitted(ExchangeCode, OrderId),
+    OrderSubmitted(ExchangeCompositeOrderId),
     ExchangeCodeNotFound,
 }
 
@@ -40,17 +40,13 @@ impl Engine {
     }
 
     pub fn run(mut self) -> Result<(), Box<dyn Error>> {
-        // Actor Update Step
-        // This is when the engine updates the actors with events from the Exchanges.
-
-        // Actor Pre-Action Step
-        // This is when the actors can request information from the exchanges.
-        // I.e. Historical market data
-
-        // Actor Action Step
-        // This is when the actors decide to submit/retract orders.
         for time in 0..self.time_horizon {
-            info!("Step {}", time.to_string());
+            // Actor Update Step
+            // This is when the engine updates the actors with events from the Exchanges.
+            // I.e. matched orders.
+
+            // Actor Action Step
+            info!("Time step {}", time.to_string());
             for actor in self.actors.values_mut().into_iter() {
                 let action = actor.act();
                 info!(
@@ -73,16 +69,20 @@ impl Engine {
                         // is stored makes it annoying to find an Order by ID.
                         todo!()
                     }
+                    _ => todo!(),
                 };
 
                 actor.register_action_response(action_response);
             }
-        }
 
-        // Exchange Matching Step
-        // At this step we ask each of the exchanges to match orders.
-        // Matched orders get added to the history and relevant counterparties
-        // get notified that an order has been matched.
+            // Exchange Matching Step
+            // At this step we ask each of the exchanges to match orders.
+            // Matched orders get added to the history and relevant counterparties
+            // get notified that an order has been matched.
+            for (code, exchange) in self.exchanges.iter_mut() {
+                let matches = exchange.match_orders();
+            }
+        }
         Ok(())
     }
 
