@@ -8,6 +8,10 @@
   [Documentation from CME on order matching](https://cmegroupclientsite.atlassian.net/wiki/spaces/EPICSANDBOX/pages/457218479/Supported+Matching+Algorithms)
   This might warrant refactoring exchanges to be behind a trait so that we can have
 different matching implementations.
+- [ ] Implement `Action::RetractOrder`
+- [ ] Implement `Action::QueryData`
+- [ ] Deserialise scenario from a file.
+- [ ] Exchanges should keep a history of all orders that they match
 - [ ] Engine should reject Actions that are invalid. I.e. an Actor attempting to submit
   an order for a trade with a higher notional than the Actor has.
   - [ ] Refactor `Exchange.bid_orders` and `Exchange.ask_orders` to be ordered hash
